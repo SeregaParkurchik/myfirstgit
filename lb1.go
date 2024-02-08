@@ -7,3 +7,7 @@ import (
 func main() {
 	fmt.Println("Hello go")
 }
+
+func myf() {
+	fmt.Println("для теста")
+}
