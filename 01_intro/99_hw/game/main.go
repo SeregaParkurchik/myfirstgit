@@ -5,120 +5,160 @@ import (
 	"strings"
 )
 
-//yakwlik
-
-type Room struct { //описываем команту
-	name        string            //хранит название команты
-	description string            //хранит описание команты
-	exits       map[string]string //карта в какую команту можно выйти, где ключ - название комнаты, значение - описание команты
+type Room struct {
+	name        string
+	description []string //ключ для осмотреться, значение для идти
+	exits       map[string]string
+	items       []string
+}
+type Player struct {
+	currentRoom *Room
+	inventory   []string
 }
 
-type Player struct { //описываем игрока
-	currentRoom *Room //описывает комнату, в которой находится сейчас игрок
-	//inventory   map[string]bool //описывает инвентарь игрока
-	inventory []string
-}
+var rooms map[string]*Room
+var player Player
 
-var rooms map[string]*Room //создаем мапу, которая хранит все команты нашей игры
-var player Player          //создаем игрока
-// нужно описать дейтсвия - осмотреться(+), идти(+),надеть(-),взять(-),применить(-)
-
-func (p *Player) lookAround() string { //создали метод  - осмотреться
-	return p.currentRoom.description //возвращает описание комнаты в которой сейчас находится игрок
-}
-
-func (p *Player) move(direction string) string { // создали метод идти
-	nextRoomName := p.currentRoom.exits[direction]
-	if nextRoomName == "" {
-		return "Из этой комнты сюда попасть нельзя"
-	}
-	p.currentRoom = rooms[nextRoomName]
-	return p.lookAround()
-}
-
-func (p *Player) take(item string) string {
-	p.inventory = append(p.inventory, item)
-	return "предмет добавлен в инвентарь: " + item
-}
 func initGame() {
-	rooms = make(map[string]*Room) //инициализируем карту
+	rooms = make(map[string]*Room)
 
-	// далее создаем каждую команту
 	rooms["кухня"] = &Room{
-		name:        "Кухня",
-		description: "ты находишься на кухне, на столе: чай, надо собрать рюкзак и идти в универ. можно пройти - коридор",
+		name:        "кухня",
+		description: []string{"ты находишься на кухне, на столе: чай, надо собрать рюкзак и идти в универ. можно пройти - коридор", "кухня, ничего интересного. можно пройти - коридор"},
 		exits:       map[string]string{"коридор": "коридор"},
 	}
 
 	rooms["коридор"] = &Room{
-		name:        "Коридор",
-		description: "ничего интересного. можно пройти - кухня, комната, улица",
+		name:        "коридор",
+		description: []string{"", "ничего интересного. можно пройти - кухня, комната, улица"},
 		exits:       map[string]string{"кухня": "кухня", "комната": "комната", "улица": "улица"},
 	}
 
 	rooms["комната"] = &Room{
-		name:        "Комната",
-		description: "ты в своей комнате. можно пройти - коридор",
+		name:        "комната",
+		description: []string{"на столе: ключи, конспекты, на стуле: рюкзак. можно пройти - коридор", "ты в своей комнате. можно пройти - коридор"},
 		exits:       map[string]string{"коридор": "коридор"},
+		items:       []string{"ключи", "конспекты", "рюкзак"},
 	}
 	rooms["улица"] = &Room{
-		name:        "Улица",
-		description: "на улице весна. можно пройти - домой",
+		name:        "улица",
+		description: []string{"", "дверь закрыта"},
 		exits:       map[string]string{"кухня": "кухня"},
 	}
 
 	player = Player{
 		currentRoom: rooms["кухня"],
-		inventory:   make([]string, 5, 10)} //создаем игрока и устанавливаем ему начальное положение
+		inventory:   []string{}}
+}
+
+func Contains(a []string, x string) bool {
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Player) lookAround() string {
+	return p.currentRoom.description[0]
+}
+
+func (p *Player) use(how, where string) string {
+	if !Contains(p.inventory, how) {
+		return "нет предмета в инвентаре - " + how
+	}
+	if how == "ключи" && where == "дверь" {
+		rooms["улица"].changeDescription1("на улице весна. можно пройти - домой")
+		//p.currentRoom.description[1] = "на улице весна. можно пройти - домой"
+		return "дверь открыта"
+	}
+	return "не к чему применить"
+}
+
+func (p *Player) move(direction string) string { // создали метод идти
+	curRoomName := p.currentRoom.name
+	nextRoomName := p.currentRoom.exits[direction]
+	if nextRoomName == "" {
+		return "нет пути в " + direction
+	}
+
+	p.currentRoom = rooms[nextRoomName]
+	if p.currentRoom.description[1] == "дверь закрыта" {
+		p.currentRoom = rooms[curRoomName]
+		return "дверь закрыта"
+
+	}
+	return p.currentRoom.description[1]
+}
+
+func (r *Room) changeDescription(newDesc string) {
+	r.description[0] = newDesc
+}
+func (r *Room) changeDescription1(newDesc string) {
+	r.description[1] = newDesc
+}
+func (r *Room) changeItems(item string) {
+	for i := range r.items {
+		if r.items[i] == item {
+			r.items[i] = ""
+			break
+		}
+	}
+
+}
+
+func (p *Player) take(item string) string {
+	if !Contains(p.inventory, "рюкзак") {
+		return "некуда класть"
+	}
+	if strings.Contains(p.currentRoom.description[0], item) {
+		p.inventory = append(p.inventory, item)
+		p.currentRoom.changeDescription(strings.Replace(p.currentRoom.description[0], item+", ", "", 1))
+		p.currentRoom.changeItems(item)
+		if p.currentRoom.items[0] == "" && p.currentRoom.items[1] == "" && p.currentRoom.items[2] == "" {
+			p.currentRoom.changeDescription("пустая комната. можно пройти - коридор")
+		}
+		return "предмет добавлен в инвентарь: " + item
+	} else {
+		return "нет такого"
+	}
+
 }
 
 func handleCommand(command string) string {
-	command = strings.ToLower(command) //приводим команду к нижнему регистру
-	//это тестовые свитчи
-	/*
-		в идеале command разбивать сплитом, и уже по первому дейсвию command[0] идти в кейсы
-		это я доделаю, но сначала нужно разобраться с другими командами
-	*/
-	switch command {
+	parts := strings.Split(command, " ")
+	switch parts[0] {
 	case "осмотреться":
 		return player.lookAround()
-	case "идти коридор", "идти комната", "идти кухня", "идти улица":
-		parts := strings.Split(command, " ") //разделяем команду на  дейсвтие-куда
-		return player.move(parts[1])         //вызываем метод и идем в эту комнату
-	case "надеть рюкзак":
+	case "идти":
+		return player.move(parts[1])
+	case "надеть":
+		player.inventory = append(player.inventory, "рюкзак")
+		rooms["комната"].description[0] = "на столе: ключи, конспекты. можно пройти - коридор"
+		player.currentRoom.changeItems("рюкзак")
 		return "вы надели: рюкзак"
-	case "взять ключи", "взять конспекты":
-		item := strings.Split(command, " ")
-		return player.take(item[1])
-	case "применить ключи дверь":
-		return "дверь открыта"
+	case "взять":
+		return player.take(parts[1])
+	case "применить":
+		return player.use(parts[1], parts[2])
 	default:
-		return "Неизвестная команда."
+		return "неизвестная команда"
 	}
 }
 
 func main() {
 	initGame()
-	/*fmt.Println(handleCommand("завтракать"))
-	fmt.Println("начальное положение ", player.currentRoom.name)
-	fmt.Println("получаем команду - осмотреться")
-	fmt.Println(player.lookAround())
-	fmt.Println("команда выполнилась")
-	fmt.Println("получаем команду - идти коридор")
-	fmt.Println(handleCommand("идти коридор"))
-	fmt.Println("команда выполнилась")
-	fmt.Println("теперь мы в комнате ", player.currentRoom.name)
-	fmt.Println("=====")
-	fmt.Println("получаем команду - идти комната")
 	fmt.Println(handleCommand("идти комната"))
-	fmt.Println("команда выполнилась")
-	fmt.Println("теперь мы в комнате ", player.currentRoom.name)
-	fmt.Println("=====")
-	//fmt.Println(handleCommand("идти коридор"))
-	//fmt.Println(handleCommand("идти кухня"))
-	fmt.Println(handleCommand("идти улица"))*/
-	handleCommand("взять ключи")
-	handleCommand("взять конспекты")
-	fmt.Println(player.inventory[0])
+	fmt.Println(handleCommand("осмотреться"))
+	fmt.Println(handleCommand("надеть рюкзак"))
+	fmt.Println(handleCommand("взять ключи"))
+	fmt.Println(handleCommand("идти коридор"))
+	fmt.Println(handleCommand("идти улица"))
+	fmt.Println(player.currentRoom.name, "----")
+	fmt.Println(handleCommand("применить ключи дверь"))
+	fmt.Println(handleCommand("применить телефон шкаф"))
+	fmt.Println(handleCommand("применить ключи шкаф"))
+	fmt.Println(handleCommand("идти улица"))
 
 }
