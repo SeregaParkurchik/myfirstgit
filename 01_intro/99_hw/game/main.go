@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 type Room struct {
@@ -51,21 +52,37 @@ func initGame() {
 		inventory:   []string{}}
 }
 
-func Contains(a []string, x string) bool {
+/*func Contains(a []string, x string) bool {
 	for _, n := range a {
 		if x == n {
 			return true
 		}
 	}
 	return false
-}
+}*/
 
 func (p *Player) lookAround() string {
+	if p == nil {
+		return "Игрок не найден"
+	}
+	if p.currentRoom == nil {
+		return "комната не найдена"
+	}
+	if len(p.currentRoom.description) == 0 {
+		return "Нет описания комнаты"
+	}
 	return p.currentRoom.description[0]
 }
 
+func (p *Player) putOn(item string) string {
+	p.inventory = append(p.inventory, item)
+	rooms["комната"].description[0] = "на столе: ключи, конспекты. можно пройти - коридор"
+	player.currentRoom.changeItems("рюкзак")
+	return "вы надели: " + item
+}
+
 func (p *Player) use(how, where string) string {
-	if !Contains(p.inventory, how) {
+	if !slices.Contains(p.inventory, how) {
 		return "нет предмета в инвентаре - " + how
 	}
 	if how == "ключи" && where == "дверь" {
@@ -77,6 +94,9 @@ func (p *Player) use(how, where string) string {
 }
 
 func (p *Player) move(direction string) string { // создали метод идти
+	if p == nil || p.currentRoom == nil {
+		return "Комнаты или игрока не сущетсвует"
+	}
 	curRoomName := p.currentRoom.name
 	nextRoomName := p.currentRoom.exits[direction]
 	if nextRoomName == "" {
@@ -109,7 +129,7 @@ func (r *Room) changeItems(item string) {
 }
 
 func (p *Player) take(item string) string {
-	if !Contains(p.inventory, "рюкзак") {
+	if !slices.Contains(p.inventory, "рюкзак") {
 		return "некуда класть"
 	}
 	if strings.Contains(p.currentRoom.description[0], item) {
@@ -134,10 +154,10 @@ func handleCommand(command string) string {
 	case "идти":
 		return player.move(parts[1])
 	case "надеть":
-		player.inventory = append(player.inventory, "рюкзак")
+		/*player.inventory = append(player.inventory, "рюкзак")
 		rooms["комната"].description[0] = "на столе: ключи, конспекты. можно пройти - коридор"
-		player.currentRoom.changeItems("рюкзак")
-		return "вы надели: рюкзак"
+		player.currentRoom.changeItems("рюкзак")*/
+		return player.putOn(parts[1])
 	case "взять":
 		return player.take(parts[1])
 	case "применить":
@@ -149,16 +169,5 @@ func handleCommand(command string) string {
 
 func main() {
 	initGame()
-	fmt.Println(handleCommand("идти комната"))
-	fmt.Println(handleCommand("осмотреться"))
-	fmt.Println(handleCommand("надеть рюкзак"))
-	fmt.Println(handleCommand("взять ключи"))
-	fmt.Println(handleCommand("идти коридор"))
-	fmt.Println(handleCommand("идти улица"))
-	fmt.Println(player.currentRoom.name, "----")
-	fmt.Println(handleCommand("применить ключи дверь"))
-	fmt.Println(handleCommand("применить телефон шкаф"))
-	fmt.Println(handleCommand("применить ключи шкаф"))
-	fmt.Println(handleCommand("идти улица"))
 
 }
